@@ -19,23 +19,43 @@
     <!-- ЛЕВАЯ КОЛОНКА -->
 
  <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,15,0">
+
+
+
+    
    <StackPanel Margin="20"> 
         
         <TextBlock Name="StatusText" Text="Загрузите файлы" HorizontalAlignment="Center" Margin="0,0,0,10"/>
         
-          <Button Content="1. Выбрать Видео" Click="SelectVideo_Click" Height="30" Width="120" Margin="5"/>
-    <Button Content="2. Выбрать Аудио" Click="SelectAudio_Click" Height="30" Width="120" Margin="5"/>
+
+
+<Grid Height="60" Background="#333" Margin="0,10" 
+      AllowDrop="True" 
+      DragOver="Element_DragOver" 
+      Drop="General_Drop"
+      MouseDown="Grid_MouseDown" 
+      Cursor="Hand"> 
     
+    <Rectangle Name="VideoBarOne" 
+               Fill="DodgerBlue" Height="20" VerticalAlignment="Top" 
+               Width="0" HorizontalAlignment="Left"
+               IsHitTestVisible="False"/>
+    
+    <Rectangle Name="AudioBarOne" 
+               Fill="Orange" Height="20" VerticalAlignment="Bottom" 
+               Width="0" HorizontalAlignment="Left" Margin="0,0,0,5"
+               IsHitTestVisible="False"/>
+</Grid>
+
+
+
+
 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5">
     <TextBlock Text="Длительность видео: " FontWeight="SemiBold"/>
     <TextBlock Name="VideoDurationText" Text="0.0" FontWeight="Bold" Foreground="DodgerBlue"/>
     <TextBlock Text=" сек."/>
 </StackPanel>
-        <!-- Контейнер для визуализации полосок -->
-        <Grid Height="60" Background="#333" Margin="0,10">
-            <Rectangle Name="VideoBar" Fill="DodgerBlue" Height="20" VerticalAlignment="Top" Width="0" HorizontalAlignment="Left"/>
-            <Rectangle Name="AudioBar" Fill="Orange" Height="20" VerticalAlignment="Bottom" Width="0" HorizontalAlignment="Left" Margin="0,0,0,5"/>
-        </Grid>
+    
 
 <StackPanel Margin="0,20">
     <TextBlock Text="Настройка отрезка аудио" HorizontalAlignment="Center" Margin="0,0,0,15" FontSize="14" FontWeight="Bold"/>

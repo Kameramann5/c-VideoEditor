@@ -1,6 +1,8 @@
 ﻿using System.Windows;
 using Microsoft.Win32; // Для OpenFileDialog
 using Xabe.FFmpeg;
+using System.Windows.Input;
+
 namespace VideoEditor;
 
 public partial class MainWindow : Window
@@ -90,68 +92,33 @@ private void TimelineSlider_DragCompleted(object sender, System.Windows.Controls
 }
 
 
-private async void SelectFiles_Click(object sender, RoutedEventArgs e)
-{
-        try
-        {
-            // 1. Выбираем видео
-            OpenFileDialog videoDialog = new OpenFileDialog { Filter = "Video files|*.mp4;*.avi;*.mov" };
-              if (videoDialog.ShowDialog() == true)
-        {
-            videoPath = videoDialog.FileName;
-            
-            // --- НОВАЯ ЛОГИКА: ЗАГРУЗКА В ПРЕДПРОСМОТР ---
-            ResultPreview.Source = new Uri(videoPath);
-            ResultPreview.Play(); // Запускаем, чтобы пользователь увидел первый кадр
-            ResultPreview.Pause(); // Сразу ставим на паузу
-            // ----------------------------------------------
-        }
-            else return;
 
-            // 2. Выбираем музыку
-            OpenFileDialog audioDialog = new OpenFileDialog { Filter = "Audio files|*.mp3;*.wav;*.m4a" };
-            if (audioDialog.ShowDialog() == true)
-            {
-                audioPath = audioDialog.FileName; // БЕЗ слова string в начале!
-            }
-            else return;
-
-            StatusText.Text = "Анализ файлов...";
-
-            // Получаем инфо
-                    isLoadingFiles = true;
-            var vInfo = await FFmpeg.GetMediaInfo(videoPath);
-            var aInfo = await FFmpeg.GetMediaInfo(audioPath);
-            videoDuration = vInfo.Duration.TotalSeconds;
-
-            VideoDurationText.Text = videoDuration.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
-
-            videoDuration = vInfo.Duration.TotalSeconds;
-            audioDuration = aInfo.Duration.TotalSeconds;
-
-
-StartSlider.Maximum = Math.Max(0, audioDuration - videoDuration); // Чтобы музыка не кончилась раньше видео
-
-StartSlider.Value = 0;
-  // ВЫКЛЮЧАЕМ РЕЖИМ ЗАГРУЗКИ
-        isLoadingFiles = false; 
-         StatusText.Text = "Готово к настройке.";
-          StatusText.Text = "Готово к настройке.";
-            // Настраиваем слайдеры
-        
-
-            // Визуально подгоняем полоски
-            VideoBar.Width = 300; 
-            AudioBar.Width = (audioDuration / videoDuration) * 300;
-            
-            StatusText.Text = "Файлы загружены. Настройте длину и жмите Склеить.";
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Ошибка при выборе файлов: {ex.Message}");
-        }
-}
 // Добавь эти события в XAML к обоим слайдерам: PreviewMouseDown="Sliders_PreviewMouseDown"
+private async void Grid_MouseDown(object sender, MouseButtonEventArgs e)
+{
+    // Открываем диалог выбора файлов
+    OpenFileDialog dialog = new OpenFileDialog 
+    { 
+        Filter = "Все медиафайлы|*.mp4;*.avi;*.mov;*.mp3;*.wav;*.m4a|Видео|*.mp4;*.avi;*.mov|Аудио|*.mp3;*.wav;*.m4a",
+        Title = "Выберите файл для загрузки"
+    };
+
+    if (dialog.ShowDialog() == true)
+    {
+        string file = dialog.FileName;
+        string ext = System.IO.Path.GetExtension(file).ToLower();
+
+        // Используем ту же логику распределения, что и в General_Drop
+        if (ext == ".mp4" || ext == ".avi" || ext == ".mov")
+        {
+            await ProcessVideo(file);
+        }
+        else if (ext == ".mp3" || ext == ".wav" || ext == ".m4a")
+        {
+            await ProcessAudio(file);
+        }
+    }
+}
 
 private async void SelectVideo_Click(object sender, RoutedEventArgs e)
 {
@@ -196,7 +163,21 @@ private async void SelectAudio_Click(object sender, RoutedEventArgs e)
 
 private void TryUpdateAnalysis()
 {
-    // Если оба пути установлены и длительности получены
+    // 1. Обновляем аудио-полоску всегда, если аудио выбрано (даже без видео)
+    if (!string.IsNullOrEmpty(audioPath) && audioDuration > 0)
+    {
+        // Если видео уже есть, рисуем пропорционально, если нет — просто фиксированную длину
+        if (videoDuration > 0)
+        {
+            AudioBarOne.Width = (audioDuration / videoDuration) * 300;
+        }
+        else
+        {
+            AudioBarOne.Width = 300; // Просто показываем, что файл принят
+        }
+    }
+
+    // 2. Если оба пути установлены — настраиваем общую логику
     if (!string.IsNullOrEmpty(videoPath) && !string.IsNullOrEmpty(audioPath))
     {
         isLoadingFiles = true;
@@ -206,13 +187,15 @@ private void TryUpdateAnalysis()
         StartSlider.Value = 0;
 
         // Визуальное отображение полосок
-        VideoBar.Width = 300; 
-        AudioBar.Width = (audioDuration / videoDuration) * 300;
+        VideoBarOne.Width = 300; 
+        // Здесь ширина аудио пересчитается точно по пропорции к видео
+        AudioBarOne.Width = (audioDuration / videoDuration) * 300;
 
         isLoadingFiles = false;
         StatusText.Text = "Файлы готовы. Настройте смещение и жмите Склеить.";
     }
 }
+
 
 
 private void StartSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -226,6 +209,89 @@ private void StartSlider_ValueChanged(object sender, RoutedPropertyChangedEventA
     StopAudioAfterDelay(1500);
 }
 
+// 1. Общий обработчик для перетаскивания на всю область Grid
+private async void General_Drop(object sender, DragEventArgs e)
+{
+    if (e.Data.GetDataPresent(DataFormats.FileDrop))
+    {
+        string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+        if (files.Length > 0)
+        {
+            string file = files[0];
+            string ext = System.IO.Path.GetExtension(file).ToLower();
+
+            // Проверяем расширение и вызываем нужный метод
+            if (ext == ".mp4" || ext == ".avi" || ext == ".mov")
+                await ProcessVideo(file);
+            else if (ext == ".mp3" || ext == ".wav" || ext == ".m4a")
+                await ProcessAudio(file);
+        }
+    }
+}
+
+// 2. Метод для визуального эффекта (курсор "плюсик")
+private void Element_DragOver(object sender, DragEventArgs e)
+{
+    e.Effects = DragDropEffects.Copy;
+    e.Handled = true;
+}
+
+// 3. Выносим логику обработки видео (чтобы вызывалась и из кнопки, и из Drop)
+private async Task ProcessVideo(string path)
+{
+    try {
+        videoPath = path;
+        ResultPreview.Source = new Uri(videoPath);
+        ResultPreview.Play(); ResultPreview.Pause();
+
+        var vInfo = await FFmpeg.GetMediaInfo(videoPath);
+        videoDuration = vInfo.Duration.TotalSeconds;
+        VideoDurationText.Text = videoDuration.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+        
+        VideoBarOne.Width = 300; // Показываем полоску
+        StatusText.Text = "Видео загружено.";
+        TryUpdateAnalysis();
+    } catch (Exception ex) { MessageBox.Show(ex.Message); }
+}
+
+// 4. Выносим логику обработки аудио
+private async Task ProcessAudio(string path)
+{
+    try {
+        audioPath = path;
+        var aInfo = await FFmpeg.GetMediaInfo(audioPath);
+        audioDuration = aInfo.Duration.TotalSeconds;
+        
+        StatusText.Text = "Аудио загружено.";
+        TryUpdateAnalysis();
+    } catch (Exception ex) { MessageBox.Show(ex.Message); }
+}
+
+
+
+private async void VideoBar_Drop(object sender, DragEventArgs e)
+{
+    if (e.Data.GetDataPresent(DataFormats.FileDrop))
+    {
+        string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+        if (files.Length > 0) 
+        {
+            await ProcessVideo(files[0]); // Вызываем общий метод обработки
+        }
+    }
+}
+
+private async void AudioBar_Drop(object sender, DragEventArgs e)
+{
+    if (e.Data.GetDataPresent(DataFormats.FileDrop))
+    {
+        string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+        if (files.Length > 0)
+        {
+            await ProcessAudio(files[0]); // Вызываем общий метод обработки
+        }
+    }
+}
 
 
 
