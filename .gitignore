@@ -1,0 +1,36 @@
+## --- Сборка (Build) ---
+[Bb]in/
+[Oo]bj/
+[Aa]rm/
+[Aa]rm64/
+[Xx]64/
+[Xx]86/
+
+## --- Visual Studio ---
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## --- Rider / JetBrains ---
+.idea/
+*.sln.iml
+
+## --- Пакеты (NuGet) ---
+project.lock.json
+project.assets.json
+nupkg/
+# Если используешь папку packages (старый формат):
+packages/
+
+## --- Результаты работы FFmpeg / Видео редактора ---
+# Скрой папку, куда будут выводиться готовые ролики, если она внутри проекта
+Output/
+temp_*/
+*.log
+
+## --- Операционная система ---
+Thumbs.db
+desktop.ini
+.DS_Store
