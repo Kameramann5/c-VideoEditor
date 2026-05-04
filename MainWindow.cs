@@ -153,6 +153,66 @@ StartSlider.Value = 0;
 }
 // Добавь эти события в XAML к обоим слайдерам: PreviewMouseDown="Sliders_PreviewMouseDown"
 
+private async void SelectVideo_Click(object sender, RoutedEventArgs e)
+{
+    OpenFileDialog videoDialog = new OpenFileDialog { Filter = "Video files|*.mp4;*.avi;*.mov" };
+    if (videoDialog.ShowDialog() == true)
+    {
+        try 
+        {
+            videoPath = videoDialog.FileName;
+            ResultPreview.Source = new Uri(videoPath);
+            ResultPreview.Play();
+            ResultPreview.Pause();
+
+            var vInfo = await FFmpeg.GetMediaInfo(videoPath);
+            videoDuration = vInfo.Duration.TotalSeconds;
+            VideoDurationText.Text = videoDuration.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+
+            StatusText.Text = "Видео загружено. Выберите аудио.";
+            TryUpdateAnalysis(); // Проверяем, можно ли считать общую логику
+        }
+        catch (Exception ex) { MessageBox.Show($"Ошибка видео: {ex.Message}"); }
+    }
+}
+
+private async void SelectAudio_Click(object sender, RoutedEventArgs e)
+{
+    OpenFileDialog audioDialog = new OpenFileDialog { Filter = "Audio files|*.mp3;*.wav;*.m4a" };
+    if (audioDialog.ShowDialog() == true)
+    {
+        try 
+        {
+            audioPath = audioDialog.FileName;
+            var aInfo = await FFmpeg.GetMediaInfo(audioPath);
+            audioDuration = aInfo.Duration.TotalSeconds;
+
+            StatusText.Text = "Аудио загружено.";
+            TryUpdateAnalysis();
+        }
+        catch (Exception ex) { MessageBox.Show($"Ошибка аудио: {ex.Message}"); }
+    }
+}
+
+private void TryUpdateAnalysis()
+{
+    // Если оба пути установлены и длительности получены
+    if (!string.IsNullOrEmpty(videoPath) && !string.IsNullOrEmpty(audioPath))
+    {
+        isLoadingFiles = true;
+
+        // Настройка слайдера
+        StartSlider.Maximum = Math.Max(0, audioDuration - videoDuration);
+        StartSlider.Value = 0;
+
+        // Визуальное отображение полосок
+        VideoBar.Width = 300; 
+        AudioBar.Width = (audioDuration / videoDuration) * 300;
+
+        isLoadingFiles = false;
+        StatusText.Text = "Файлы готовы. Настройте смещение и жмите Склеить.";
+    }
+}
 
 
 private void StartSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

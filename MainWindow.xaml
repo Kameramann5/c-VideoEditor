@@ -23,7 +23,9 @@
         
         <TextBlock Name="StatusText" Text="Загрузите файлы" HorizontalAlignment="Center" Margin="0,0,0,10"/>
         
-        <Button Content="Выбрать Видео и Аудио" Click="SelectFiles_Click" Height="30" Margin="0,0,0,10"/>
+          <Button Content="1. Выбрать Видео" Click="SelectVideo_Click" Height="30" Width="120" Margin="5"/>
+    <Button Content="2. Выбрать Аудио" Click="SelectAudio_Click" Height="30" Width="120" Margin="5"/>
+    
 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5">
     <TextBlock Text="Длительность видео: " FontWeight="SemiBold"/>
     <TextBlock Name="VideoDurationText" Text="0.0" FontWeight="Bold" Foreground="DodgerBlue"/>
