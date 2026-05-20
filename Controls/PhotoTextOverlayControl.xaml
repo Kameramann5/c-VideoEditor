@@ -1,0 +1,112 @@
+<UserControl x:Class="VideoEditor.Controls.PhotoTextOverlayControl"
+            xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+            xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+             
+    <!-- Пустой контейнер для будущего функционала добавления текста на фото -->
+  <Grid Background="#f9f9f9">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2*"/>
+            <ColumnDefinition Width="1*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Левая часть: Предпросмотр -->
+        <Border Grid.Column="0" Margin="15" BorderBrush="#E0E0E0" BorderThickness="1" Background="#EAEAEA">
+            <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock x:Name="PlaceholderText" Text="Фото не выбрано" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Gray"/>
+                
+                <Grid x:Name="PhotoArea" ClipToBounds="True" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Image x:Name="TargetImage" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    
+                    <!-- Текст поверх картинки -->
+                    <TextBlock x:Name="OverlayTextBlock" 
+                               Text="{Binding ElementName=InputTextBox, Path=Text}" 
+                               
+                               Foreground="White" 
+                               FontSize="{Binding ElementName=SliderFontSize, Path=Value}" 
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center" 
+                               VerticalAlignment="Center"
+                               TextWrapping="Wrap"
+                               Visibility="Collapsed">
+                        <TextBlock.RenderTransform>
+                            <TranslateTransform X="{Binding ElementName=SliderX, Path=Value}" 
+                                                Y="{Binding ElementName=SliderY, Path=Value}"/>
+                        </TextBlock.RenderTransform>
+                        <TextBlock.Effect>
+                            <DropShadowEffect BlurRadius="6" Color="Black" ShadowDepth="3"/>
+                        </TextBlock.Effect>
+                    </TextBlock>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Правая часть: Панель управления -->
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="10" VerticalAlignment="Center">
+                
+                <Button Content="Выбрать фото" Width="180" Height="35" Margin="0,5" Click="SelectPhoto_Click"/>
+                
+                <TextBlock Text="Введите text:" Margin="0,10,0,2" Foreground="Gray"/>
+                <TextBox x:Name="InputTextBox" Width="180" Height="50" TextWrapping="Wrap" AcceptsReturn="True" Text="Ваш текст"/>
+<!-- ДОБАВЬТЕ ЭТОТ ФЛАЖОК СЮДА -->
+<CheckBox x:Name="CheckCaps" 
+          Content="Только ЗАГЛАВНЫЕ" 
+          IsChecked="True" 
+          Margin="0,5,0,0" 
+          HorizontalAlignment="Left"
+          Checked="CheckCaps_Toggle" 
+          Unchecked="CheckCaps_Toggle"/>
+
+
+
+                <!-- Выбор Шрифта -->
+                <TextBlock Text="Шрифт текста:" Margin="0,10,0,2" Foreground="Gray"/>
+                <ComboBox x:Name="ComboFont" Width="180" SelectionChanged="ComboFont_SelectionChanged" SelectedIndex="0">
+                 
+                    <ComboBoxItem Content="Impact (Классический мем)"/>
+                    <ComboBoxItem Content="Arial"/>
+                    <ComboBoxItem Content="Times New Roman"/>
+                    <ComboBoxItem Content="Comic Sans MS"/>
+                </ComboBox>
+
+                <!-- Размер Шрифта -->
+                <TextBlock Text="Размер шрифта:" Margin="0,10,0,2" Foreground="Gray"/>
+                <Slider x:Name="SliderFontSize" Minimum="12" Maximum="120" Value="32" Width="180"/>
+
+                <!-- Выравнивание -->
+                <TextBlock Text="Выравнивание:" Margin="0,10,0,2" Foreground="Gray"/>
+                <ComboBox x:Name="ComboAlignment" Width="180" SelectionChanged="ComboAlignment_SelectionChanged" SelectedIndex="4">
+                    <ComboBoxItem Content="Сверху-Слева"/>
+                    <ComboBoxItem Content="Сверху-Центр"/>
+                    <ComboBoxItem Content="Сверху-Справа"/>
+                    <ComboBoxItem Content="Центр-Слева"/>
+                    <ComboBoxItem Content="По центру"/>
+                    <ComboBoxItem Content="Центр-Справа"/>
+                    <ComboBoxItem Content="Снизу-Слева"/>
+                    <ComboBoxItem Content="Снизу-Центр"/>
+                    <ComboBoxItem Content="Снизу-Справа"/>
+                </ComboBox>
+<!-- Выбор выравнивания строк (Добавьте этот блок) -->
+<TextBlock Text="Выравнивание текста:" Margin="0,10,0,2" Foreground="Gray"/>
+<ComboBox x:Name="ComboTextAlignment" Width="180" SelectionChanged="ComboTextAlignment_SelectionChanged" SelectedIndex="1">
+    <ComboBoxItem Content="По левому краю"/>
+    <ComboBoxItem Content="По центру"/>
+    <ComboBoxItem Content="По правому краю"/>
+</ComboBox>
+
+                <!-- Ползунки смещения -->
+                <TextBlock Text="Смещение по X:" Margin="0,10,0,2" Foreground="Gray"/>
+                <Slider x:Name="SliderX" Minimum="-100" Maximum="100" Value="0" Width="180"/>
+
+                <TextBlock Text="Смещение по Y:" Margin="0,5,0,2" Foreground="Gray"/>
+                <Slider x:Name="SliderY" Minimum="-100" Maximum="100" Value="0" Width="180"/>
+                
+                <Button Content="Сохранить результат" Width="180" Height="35" Margin="0,20,0,0" Background="#4CAF50" Foreground="White" Click="SavePhoto_Click"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

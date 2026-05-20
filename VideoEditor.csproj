@@ -14,6 +14,8 @@
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="9.0.0" />
     <PackageReference Include="Xabe.FFmpeg" Version="6.0.2" />
+    <Resource Include="fonts/Impact.ttf" />
+
   </ItemGroup>
 
 </Project>
