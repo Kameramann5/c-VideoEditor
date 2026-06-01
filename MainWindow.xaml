@@ -141,13 +141,125 @@
 </Grid>
    </TabItem>
 
-        <!-- ВТОРАЯ ВКЛАДКА:  -->
+        <!-- ВТОРАЯ ВКЛАДКА: Обрезать видео -->
         <TabItem Header="Обрезать видео">
-            <Grid Background="#f9f9f9">
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock Text="Здесь будет твой новый функционал" FontSize="20" Foreground="Gray"/>
-                    <Button Content="Тестовая кнопка" Width="150" Height="40" Margin="10"/>
-                </StackPanel>
+            <Grid Margin="15">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="600"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- ЛЕВАЯ КОЛОНКА -->
+                <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,15,0">
+                    <StackPanel Margin="20">
+                        <TextBlock Name="TrimStatusText" Text="Загрузите видео" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+
+                        <Grid Height="40" Background="#333" Margin="0,10"
+                              AllowDrop="True"
+                              DragOver="Element_DragOver"
+                              Drop="TrimVideo_Drop"
+                              MouseDown="TrimGrid_MouseDown"
+                              Cursor="Hand">
+                            <TextBlock Text="Нажмите или перетащите видео сюда"
+                                       Foreground="White"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5">
+                            <TextBlock Text="Длительность: " FontWeight="SemiBold"/>
+                            <TextBlock Name="TrimVideoDurationText" Text="0.0" FontWeight="Bold" Foreground="DodgerBlue"/>
+                            <TextBlock Text=" сек."/>
+                        </StackPanel>
+
+                        <StackPanel Margin="0,20">
+                            <TextBlock Text="Настройка обрезки" HorizontalAlignment="Center" Margin="0,0,0,15" FontSize="14" FontWeight="Bold"/>
+
+                            <StackPanel Margin="0,0,0,15">
+                                <DockPanel LastChildFill="False">
+                                    <TextBlock Text="Начало отрезка (Зеленый):" FontSize="11" Foreground="DarkGreen"/>
+                                    <TextBlock Text="{Binding ElementName=TrimStartSlider, Path=Value, StringFormat={}{0:F1} сек.}"
+                                              DockPanel.Dock="Right" FontWeight="Bold" Foreground="DarkGreen"/>
+                                </DockPanel>
+                                <Slider Name="TrimStartSlider"
+                                        Minimum="0" Maximum="100" Value="0"
+                                        ValueChanged="TrimStartSlider_ValueChanged"
+                                        Foreground="Green" Height="30"/>
+                            </StackPanel>
+
+                            <StackPanel Margin="0,0,0,15">
+                                <DockPanel LastChildFill="False">
+                                    <TextBlock Text="Конец отрезка (Красный):" FontSize="11" Foreground="DarkRed"/>
+                                    <TextBlock Text="{Binding ElementName=TrimEndSlider, Path=Value, StringFormat={}{0:F1} сек.}"
+                                              DockPanel.Dock="Right" FontWeight="Bold" Foreground="DarkRed"/>
+                                </DockPanel>
+                                <Slider Name="TrimEndSlider"
+                                        Minimum="0" Maximum="100" Value="0"
+                                        ValueChanged="TrimEndSlider_ValueChanged"
+                                        Foreground="Red" Height="30"/>
+                            </StackPanel>
+
+                            <Border Background="#F0F0F0" CornerRadius="5" Padding="10" Margin="0,10">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="Диапазон: " VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding ElementName=TrimStartSlider, Path=Value, StringFormat={}{0:F1}}"
+                                                   Foreground="Green" FontWeight="Bold" FontSize="14"/>
+                                        <TextBlock Text=" — " VerticalAlignment="Center" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding ElementName=TrimEndSlider, Path=Value, StringFormat={}{0:F1}}"
+                                                   Foreground="Red" FontWeight="Bold" FontSize="14"/>
+                                        <TextBlock Text=" сек." VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,0">
+                                        <TextBlock Text="Длительность: " VerticalAlignment="Center"/>
+                                        <TextBlock Name="TrimDurationText" Text="0.0" Foreground="Purple" FontWeight="Bold" FontSize="14"/>
+                                        <TextBlock Text=" сек." VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <Button Content="Сохранить обрезанное видео" Click="TrimSaveButton_Click" Height="40" Margin="0,20,0,0"/>
+                        <ProgressBar Name="TrimProgBar" Height="10" Margin="0,10,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ПРАВАЯ КОЛОНКА (Видео) -->
+                <Grid Grid.Column="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="500"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="Black" CornerRadius="8" ClipToBounds="True">
+                        <MediaElement Name="TrimPreview"
+                                      LoadedBehavior="Manual"
+                                      UnloadedBehavior="Stop"
+                                      Stretch="Uniform"/>
+                    </Border>
+
+                    <StackPanel Grid.Row="1" Margin="10,0">
+                        <Grid>
+                            <Rectangle Name="TrimRangeIndicator" Fill="#4400CC00" 
+                                       HorizontalAlignment="Left" IsHitTestVisible="False"
+                                       Height="20" VerticalAlignment="Center"/>
+                            <Slider Name="TrimTimelineSlider" Minimum="0" Maximum="100"
+                                    Thumb.DragStarted="TrimTimelineSlider_DragStarted"
+                                    Thumb.DragCompleted="TrimTimelineSlider_DragCompleted"
+                                    SizeChanged="TrimTimelineSlider_SizeChanged"/>
+                        </Grid>
+
+                        <DockPanel LastChildFill="False" Margin="0,2,0,0">
+                            <TextBlock Name="TrimCurrentTimeText" Text="00:00" FontSize="11" DockPanel.Dock="Left"/>
+                            <TextBlock Name="TrimTotalTimeText" Text="00:00" FontSize="11" DockPanel.Dock="Right"/>
+                        </DockPanel>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5">
+                            <Button Content="⏮ Начало" Click="TrimRewind_Click" Width="90" Height="30" Margin="5"/>
+                            <Button Content="▶ Play / ⏸ Стоп" Click="TrimPlay_Click" Width="110" Height="30" Margin="5"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </TabItem>
   <!-- ТРЕТЬЯ ВКЛАДКА:  -->

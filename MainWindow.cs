@@ -24,7 +24,8 @@ bool isDragging = false; // Чтобы слайдер не "дергался", �
     timer.Interval = TimeSpan.FromMilliseconds(100); // Обновлять 10 раз в секунду
     timer.Tick += Timer_Tick;
             Xabe.FFmpeg.FFmpeg.SetExecutablesPath(@"C:\ffmpeg\bin"); 
-
+        trimTimer.Interval = TimeSpan.FromMilliseconds(100);
+        trimTimer.Tick += TrimTimer_Tick;
 
         // Укажите путь к папке, где лежит ffmpeg.exe, если он не добавлен в PATH системы
         // FFmpeg.SetExecutablesPath(@"C:\ffmpeg\bin"); 
@@ -431,6 +432,280 @@ private async void StopAudioAfterDelay(int ms)
     if (AudioPreview != null) 
     {
         AudioPreview.Pause();
+    }
+}
+
+// ============ ВКЛАДКА "ОБРЕЗАТЬ ВИДЕО" ============
+
+string trimVideoPath = "";
+double trimVideoDuration = 0;
+System.Windows.Threading.DispatcherTimer trimTimer = new();
+bool trimIsDragging = false;
+bool trimIsPlaying = false;
+
+private void TrimTimelineSlider_SizeChanged(object sender, SizeChangedEventArgs e)
+{
+    UpdateTrimRangeIndicator();
+}
+
+private void UpdateTrimRangeIndicator()
+{
+    if (TrimTimelineSlider == null || TrimRangeIndicator == null) return;
+    double w = TrimTimelineSlider.ActualWidth;
+    if (w <= 0 || trimVideoDuration <= 0) return;
+
+    double start = TrimStartSlider.Value;
+    double end = TrimEndSlider.Value;
+    double left = (start / trimVideoDuration) * w;
+    double width = ((end - start) / trimVideoDuration) * w;
+
+    TrimRangeIndicator.Margin = new Thickness(left, 0, 0, 0);
+    TrimRangeIndicator.Width = Math.Max(0, width);
+}
+
+private void TrimTimer_Tick(object? sender, EventArgs e)
+{
+    if (TrimPreview.Source != null && TrimPreview.NaturalDuration.HasTimeSpan && !trimIsDragging)
+    {
+        double max = TrimPreview.NaturalDuration.TimeSpan.TotalSeconds;
+        TrimTimelineSlider.Maximum = max;
+        TrimTimelineSlider.Value = TrimPreview.Position.TotalSeconds;
+
+        TrimCurrentTimeText.Text = TrimPreview.Position.ToString(@"mm\:ss");
+        TrimTotalTimeText.Text = TrimPreview.NaturalDuration.TimeSpan.ToString(@"mm\:ss");
+    }
+}
+
+private async void TrimVideo_Drop(object sender, DragEventArgs e)
+{
+    if (e.Data.GetDataPresent(DataFormats.FileDrop))
+    {
+        string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+        if (files.Length > 0)
+        {
+            string file = files[0];
+            string ext = System.IO.Path.GetExtension(file).ToLower();
+            if (ext == ".mp4" || ext == ".avi" || ext == ".mov" || ext == ".mkv" || ext == ".wmv")
+            {
+                await TrimLoadVideo(file);
+            }
+        }
+    }
+}
+
+private async void TrimGrid_MouseDown(object sender, MouseButtonEventArgs e)
+{
+    OpenFileDialog dialog = new OpenFileDialog
+    {
+        Filter = "Видео|*.mp4;*.avi;*.mov;*.mkv;*.wmv",
+        Title = "Выберите видео для обрезки"
+    };
+
+    if (dialog.ShowDialog() == true)
+    {
+        await TrimLoadVideo(dialog.FileName);
+    }
+}
+
+private async Task TrimLoadVideo(string path)
+{
+    try
+    {
+        TrimPreview.Source = null;
+        trimVideoPath = path;
+        TrimPreview.Source = new Uri(trimVideoPath);
+        TrimPreview.Play();
+        TrimPreview.Pause();
+
+        var vInfo = await FFmpeg.GetMediaInfo(trimVideoPath);
+        trimVideoDuration = vInfo.Duration.TotalSeconds;
+        TrimVideoDurationText.Text = trimVideoDuration.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+
+        TrimStartSlider.Maximum = trimVideoDuration;
+        TrimEndSlider.Maximum = trimVideoDuration;
+        TrimStartSlider.Value = 0;
+        TrimEndSlider.Value = trimVideoDuration;
+        TrimTimelineSlider.Maximum = trimVideoDuration;
+
+        UpdateTrimDuration();
+        UpdateTrimRangeIndicator();
+
+        TrimStatusText.Text = "Видео загружено. Настройте отрезок и сохраните.";
+    }
+    catch (Exception ex)
+    {
+        MessageBox.Show($"Ошибка загрузки видео: {ex.Message}");
+    }
+}
+
+private void UpdateTrimDuration()
+{
+    double duration = Math.Max(0, TrimEndSlider.Value - TrimStartSlider.Value);
+    TrimDurationText.Text = duration.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+}
+
+private void TrimStartSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+{
+    if (TrimStartSlider == null || TrimEndSlider == null) return;
+
+    if (TrimStartSlider.Value >= TrimEndSlider.Value)
+    {
+        TrimStartSlider.Value = Math.Max(0, TrimEndSlider.Value - 1);
+    }
+
+    UpdateTrimDuration();
+    UpdateTrimRangeIndicator();
+
+    if (TrimPreview.Source != null && TrimPreview.NaturalDuration.HasTimeSpan)
+    {
+        TrimPreview.Position = TimeSpan.FromSeconds(TrimStartSlider.Value);
+    }
+}
+
+private void TrimEndSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+{
+    if (TrimStartSlider == null || TrimEndSlider == null) return;
+
+    if (TrimEndSlider.Value <= TrimStartSlider.Value)
+    {
+        TrimEndSlider.Value = Math.Min(trimVideoDuration, TrimStartSlider.Value + 1);
+    }
+
+    UpdateTrimDuration();
+    UpdateTrimRangeIndicator();
+
+    if (TrimPreview.Source != null && TrimPreview.NaturalDuration.HasTimeSpan)
+    {
+        TrimPreview.Position = TimeSpan.FromSeconds(TrimEndSlider.Value);
+    }
+}
+
+private void TrimTimelineSlider_DragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e)
+{
+    trimIsDragging = true;
+}
+
+private void TrimTimelineSlider_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+{
+    trimIsDragging = false;
+    if (TrimPreview.Source != null)
+    {
+        TrimPreview.Position = TimeSpan.FromSeconds(TrimTimelineSlider.Value);
+    }
+}
+
+private void TrimPlay_Click(object sender, RoutedEventArgs e)
+{
+    if (string.IsNullOrEmpty(trimVideoPath)) return;
+
+    if (TrimPreview.Source == null)
+        TrimPreview.Source = new Uri(trimVideoPath);
+
+    if (TrimPreview.IsMuted)
+        TrimPreview.IsMuted = false;
+
+    if (trimIsPlaying)
+    {
+        TrimPreview.Pause();
+        trimTimer.Stop();
+        trimIsPlaying = false;
+        TrimStatusText.Text = "Пауза";
+        return;
+    }
+
+    double pos = TrimPreview.Position.TotalSeconds;
+
+    if (pos >= TrimEndSlider.Value || pos < TrimStartSlider.Value)
+    {
+        TrimPreview.Position = TimeSpan.FromSeconds(TrimStartSlider.Value);
+    }
+
+    TrimPreview.Play();
+    trimTimer.Start();
+    trimIsPlaying = true;
+    TrimStatusText.Text = "Воспроизведение отрезка...";
+}
+
+private void TrimRewind_Click(object sender, RoutedEventArgs e)
+{
+    if (TrimPreview.Source == null) return;
+    TrimPreview.Pause();
+    trimTimer.Stop();
+    trimIsPlaying = false;
+    TrimPreview.Position = TimeSpan.FromSeconds(0);
+    TrimTimelineSlider.Value = 0;
+    TrimStatusText.Text = "В начало";
+}
+
+private async void TrimSaveButton_Click(object sender, RoutedEventArgs e)
+{
+    if (string.IsNullOrEmpty(trimVideoPath))
+    {
+        MessageBox.Show("Сначала загрузите видео!");
+        return;
+    }
+
+    double start = TrimStartSlider.Value;
+    double end = TrimEndSlider.Value;
+
+        TrimPreview.Pause();
+    trimTimer.Stop();
+    trimIsPlaying = false;
+
+    SaveFileDialog saveDialog = new SaveFileDialog
+    {
+        Filter = "MP4 Video|*.mp4",
+        FileName = "trimmed_video.mp4"
+    };
+
+    if (saveDialog.ShowDialog() != true) return;
+    string outputPath = saveDialog.FileName;
+
+    try
+    {
+        TrimStatusText.Text = "Обрезка видео...";
+        TrimProgBar.IsIndeterminate = true;
+
+        string ss = start.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+        string to = end.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+
+        var conversion = FFmpeg.Conversions.New()
+            .AddParameter($"-ss {ss}")
+            .AddParameter($"-i \"{trimVideoPath}\"")
+            .AddParameter($"-to {to}")
+            .AddParameter("-c copy")
+            .AddParameter("-avoid_negative_ts make_zero")
+            .SetOutput(outputPath);
+
+        await conversion.Start();
+
+        TrimProgBar.IsIndeterminate = false;
+        TrimStatusText.Text = "Готово!";
+        MessageBox.Show($"Видео обрезано и сохранено:\n{outputPath}");
+
+        TrimPreview.Source = null;
+        trimVideoPath = outputPath;
+        TrimPreview.Source = new Uri(trimVideoPath);
+        TrimPreview.Play();
+        TrimPreview.Pause();
+
+        var vInfo = await FFmpeg.GetMediaInfo(trimVideoPath);
+        trimVideoDuration = vInfo.Duration.TotalSeconds;
+        TrimVideoDurationText.Text = trimVideoDuration.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+
+        TrimStartSlider.Maximum = trimVideoDuration;
+        TrimEndSlider.Maximum = trimVideoDuration;
+        TrimStartSlider.Value = 0;
+        TrimEndSlider.Value = trimVideoDuration;
+        TrimTimelineSlider.Maximum = trimVideoDuration;
+        UpdateTrimDuration();
+        UpdateTrimRangeIndicator();
+    }
+    catch (Exception ex)
+    {
+        TrimProgBar.IsIndeterminate = false;
+        TrimStatusText.Text = "Ошибка обрезки";
+        MessageBox.Show($"Ошибка: {ex.Message}");
     }
 }
 
